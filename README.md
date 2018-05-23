@@ -26,10 +26,11 @@ biLM architecture here is
 
 __________________________________________________________________________
 EMLo layers conf
-input num_tensors = # of biLM layers + 1 (context independent input, the one out of cnn+highway+projection, before LSTM)
-input tensor = [context independent input] + [first LSTM output] + [second LSTM output]
-mixture = gamma * sum(weights * tensor)
-weights are scalar with softmax. 
+1) input num_tensors = # of biLM layers + 1 (
+    * 1 = context independent input, the one out of cnn+highway+projection, before LSTM
+2) input tensor = [context independent input] + [first LSTM output] + [second LSTM output]
+3) mixture = gamma * sum(weights * tensor)
+  * weights are scalar with softmax. 
 EMLo parameters:
 (gamma, weights) * # of EMLo layers
 
