@@ -3,7 +3,7 @@ import torch
 from torch.autograd import Variable
 from torch.nn.utils.rnn import pack_padded_sequence, PackedSequence
 from nn.util import get_lengths_from_binary_sequence_mask, sort_batch_by_length
-
+torch.set_default_tensor_type('torch.cuda.FloatTensor')
 # We have two types here for the state, because storing the state in something
 # which is Iterable (like a tuple, below), is helpful for internal manipulation
 # - however, the states are consumed as either Tensors or a Tuple of Tensors, so

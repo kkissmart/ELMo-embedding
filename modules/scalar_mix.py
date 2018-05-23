@@ -1,6 +1,6 @@
 import torch
 from torch.nn import ParameterList, Parameter
-
+torch.set_default_tensor_type('torch.cuda.FloatTensor')
 
 class ScalarMix(torch.nn.Module):
     """
@@ -17,9 +17,9 @@ class ScalarMix(torch.nn.Module):
         self.mixture_size = mixture_size
         self.do_layer_norm = do_layer_norm
 
-        self.scalar_parameters = ParameterList([Parameter(torch.FloatTensor([0.0]))
+        self.scalar_parameters = ParameterList([Parameter(torch.cuda.FloatTensor([0.0]))
                                                 for _ in range(mixture_size)])
-        self.gamma = Parameter(torch.FloatTensor([1.0]))
+        self.gamma = Parameter(torch.cuda.FloatTensor([1.0]))
 
     def forward(self,
                 tensors,  # pylint: disable=arguments-differ

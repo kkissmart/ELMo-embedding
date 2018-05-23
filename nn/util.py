@@ -1,6 +1,6 @@
 import torch
 from torch.autograd import Variable
-
+torch.set_default_tensor_type('torch.cuda.FloatTensor')
 
 def get_dropout_mask(dropout_probability, tensor_for_masking):
     """
@@ -115,8 +115,7 @@ def add_sentence_boundary_token_ids(tensor,
         The new mask for the tensor, taking into account the appended tokens
         marking the beginning and end of the sentence.
     """
-    # TODO: matthewp, profile this transfer
-    print (sentence_begin_token.shape)
+    #print (sentence_begin_token.shape)
     sequence_lengths = mask.sum(dim=1).data.cpu().numpy()
     tensor_shape = list(tensor.data.shape)
     new_shape = list(tensor_shape)

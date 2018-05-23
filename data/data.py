@@ -150,10 +150,10 @@ class UnicodeCharsVocabulary(Vocabulary):
 
         word_encoded = word.encode('utf-8', 'ignore')[:(self.max_word_length-2)]
         code[0] = self.bow_char
+        k = 1
         for k, chr_id in enumerate(word_encoded, start=1):
             code[k] = chr_id
         code[k + 1] = self.eow_char
-
         return code
 
     def word_to_char_ids(self, word):
@@ -162,7 +162,7 @@ class UnicodeCharsVocabulary(Vocabulary):
         else:
             return self._convert_word_to_char_ids(word)
 
-    def encode_chars(self, sentence, reverse=False, split=True):
+    def encode_chars(self, sentence, reverse=False, split=True, with_bos_eos=True):
         '''
         Encode the sentence as a white space delimited string of tokens.
         '''
@@ -173,10 +173,12 @@ class UnicodeCharsVocabulary(Vocabulary):
             chars_ids = [self.word_to_char_ids(cur_word)
                          for cur_word in sentence]
         if reverse:
-            return np.vstack([self.eos_chars] + chars_ids + [self.bos_chars])
-        else:
+            if with_bos_eos:
+                return np.vstack([self.eos_chars] + chars_ids + [self.bos_chars])
+            return np.vstack(chars_ids)
+        if with_bos_eos:
             return np.vstack([self.bos_chars] + chars_ids + [self.eos_chars])
-
+        return np.vstack(chars_ids)
 
 class Batcher(object):
     '''
@@ -194,29 +196,40 @@ class Batcher(object):
         self._max_token_length = max_token_length
         self._max_sentence_length = max_sentence_length
 
-    def batch_sentences(self, sentences):
+    def batch_sentences(self, sentences, with_bos_eos):
         '''
         Batch the sentences as character ids
         Each sentence is a list of tokens without <s> or </s>, e.g.
         [['The', 'first', 'sentence', '.'], ['Second', '.']]
         '''
         n_sentences = len(sentences)
+        if with_bos_eos:
+            X_char_ids = np.zeros((n_sentences,
+                                   self._max_sentence_length+2,
+                                   self._max_token_length),
+                                  dtype=np.int64)
 
-        X_char_ids = np.zeros(
-            (n_sentences, self._max_sentence_length+2, self._max_token_length),
-            dtype=np.int64
-        )
-
-        for k, sent in enumerate(sentences):
-            length = len(sent) + 2
-            char_ids_without_mask = self._lm_vocab.encode_chars(
-                sent, split=False)
+            for k, sent in enumerate(sentences):
+                length = min(len(sent) + 2, self._max_sentence_length+2)
+                char_ids_without_mask = self._lm_vocab.encode_chars(sent,
+                                                                    split=False,
+                                                                    with_bos_eos=with_bos_eos)
             # add one so that 0 is the mask value
-            X_char_ids[k, :length, :] = char_ids_without_mask + 1
+                X_char_ids[k, :length, :] = (char_ids_without_mask + 1)[:length]
+            return X_char_ids
 
+        X_char_ids = np.zeros((n_sentences,
+                               self._max_sentence_length,
+                               self._max_token_length),
+                              dtype=np.int64)
+        for k, sent in enumerate(sentences):
+            length = min(len(sent), self._max_sentence_length)
+            char_ids_without_mask = self._lm_vocab.encode_chars(sent,
+                                                                split=False,
+                                                                with_bos_eos=with_bos_eos)
+        # add one so that 0 is the mask value
+            X_char_ids[k, :length, :] = (char_ids_without_mask + 1)[:length]
         return X_char_ids
-
-
 class TokenBatcher(object):
     '''
     Batch sentences of tokenized text into token id matrices.
@@ -503,7 +516,7 @@ class ELMoCharacterMapper:
         if word == ELMoCharacterMapper.bos_token:
             char_ids = ELMoCharacterMapper.beginning_of_sentence_characters
         elif word == ELMoCharacterMapper.eos_token:
-            char_ids = ELMoCharacterMapper.end_of_sentence_characters
+            char_ids = [ELMoCharacterMapper.padding_character] * ELMoCharacterMapper.max_word_length
         else:
             word_encoded = word.encode('utf-8', 'ignore')[:(ELMoCharacterMapper.max_word_length-2)]
             char_ids = [ELMoCharacterMapper.padding_character] * ELMoCharacterMapper.max_word_length

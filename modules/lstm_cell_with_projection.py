@@ -11,7 +11,7 @@ from torch.autograd import Variable
 from nn.util import get_dropout_mask
 from nn.initializers import block_orthogonal
 
-
+torch.set_default_tensor_type('torch.cuda.FloatTensor')
 class LstmCellWithProjection(torch.nn.Module):
     """
     An LSTM with Recurrent Dropout and
@@ -90,7 +90,7 @@ class LstmCellWithProjection(torch.nn.Module):
         # Exploration of Recurrent Network Architectures, (Jozefowicz, 2015).
         self.state_linearity.bias.data[self.cell_size:2 * self.cell_size].fill_(1.0)
 
-    def forward(self, inputs,batch_lengths,
+    def forward(self, inputs, batch_lengths,
                 initial_state=None):
         """
         Parameters

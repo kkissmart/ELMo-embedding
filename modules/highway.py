@@ -5,7 +5,7 @@ transformation and a non-linear transformation of its input.
 
 import torch
 from overrides import overrides
-
+torch.set_default_tensor_type('torch.cuda.FloatTensor')
 
 class Highway(torch.nn.Module):
     """

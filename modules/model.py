@@ -13,7 +13,7 @@ from modules.highway import Highway
 import torch
 from torch.nn.modules import Dropout
 from torch.autograd import Variable
-
+torch.set_default_tensor_type('torch.cuda.FloatTensor')
 
 class _ElmoCharacterEncoder(torch.nn.Module):
     """
@@ -98,9 +98,9 @@ class _ElmoCharacterEncoder(torch.nn.Module):
         # the character id embedding
         max_chars_per_token = self._options['char_cnn']['max_characters_per_token']
         # (batch_size * sequence_length, max_chars_per_token, embed_dim)
-        #print(character_ids_with_bos_eos.view(-1, max_chars_per_token)[0])
+        #print(character_ids_with_bos_eos.view(-1, max_chars_per_token).shape)
         character_embedding = torch.nn.functional.embedding(
-                character_ids_with_bos_eos.view(-1, max_chars_per_token).type(torch.LongTensor),
+                character_ids_with_bos_eos.view(-1, max_chars_per_token).type(torch.cuda.LongTensor),
                 self._char_embedding_weights
         )
 
@@ -114,18 +114,23 @@ class _ElmoCharacterEncoder(torch.nn.Module):
             raise Exception("Unknown activation")
 
         # (batch_size * sequence_length, embed_dim, max_chars_per_token)
+        #print (character_embedding.shape)
         character_embedding = torch.transpose(character_embedding, 1, 2)
+        #print (character_embedding.shape)
         convs = []
         for i in range(len(self._convolutions)):
             conv = getattr(self, 'char_conv_{}'.format(i))
             convolved = conv(character_embedding)
             # (batch_size * sequence_length, n_filters for this width)
+            #print (convolved.shape)
             convolved, _ = torch.max(convolved, dim=-1)
+            #print (convolved.shape)
             convolved = activation(convolved)
             convs.append(convolved)
 
         # (batch_size * sequence_length, n_filters)
         token_embedding = torch.cat(convs, dim=-1)
+        #print (token_embedding.shape)
 
         # apply the highway layers (batch_size * sequence_length, n_filters)
         token_embedding = self._highways(token_embedding)
@@ -158,7 +163,7 @@ class _ElmoCharacterEncoder(torch.nn.Module):
         weights[1:, :] = char_embed_weights
 
         self._char_embedding_weights = torch.nn.Parameter(
-                torch.FloatTensor(weights), requires_grad=self.requires_grad
+                torch.cuda.FloatTensor(weights), requires_grad=self.requires_grad
         )
         print ("** weight", self._char_embedding_weights.shape)
 
@@ -183,8 +188,8 @@ class _ElmoCharacterEncoder(torch.nn.Module):
             w_reshaped = numpy.transpose(weight.squeeze(axis=0), axes=(2, 1, 0))
             if w_reshaped.shape != tuple(conv.weight.data.shape):
                 raise ValueError("Invalid weight file")
-            conv.weight.data.copy_(torch.FloatTensor(w_reshaped))
-            conv.bias.data.copy_(torch.FloatTensor(bias))
+            conv.weight.data.copy_(torch.cuda.FloatTensor(w_reshaped))
+            conv.bias.data.copy_(torch.cuda.FloatTensor(bias))
 
             conv.weight.requires_grad = self.requires_grad
             conv.bias.requires_grad = self.requires_grad
@@ -214,13 +219,13 @@ class _ElmoCharacterEncoder(torch.nn.Module):
                 # -1.0 since AllenNLP is g * x + (1 - g) * f(x) but tf is (1 - g) * x + g * f(x)
                 w_carry = -1.0 * numpy.transpose(fin['CNN_high_{}'.format(k)]['W_carry'][...])
                 weight = numpy.concatenate([w_transform, w_carry], axis=0)
-                self._highways._layers[k].weight.data.copy_(torch.FloatTensor(weight))
+                self._highways._layers[k].weight.data.copy_(torch.cuda.FloatTensor(weight))
                 self._highways._layers[k].weight.requires_grad = self.requires_grad
 
                 b_transform = fin['CNN_high_{}'.format(k)]['b_transform'][...]
                 b_carry = -1.0 * fin['CNN_high_{}'.format(k)]['b_carry'][...]
                 bias = numpy.concatenate([b_transform, b_carry], axis=0)
-                self._highways._layers[k].bias.data.copy_(torch.FloatTensor(bias))
+                self._highways._layers[k].bias.data.copy_(torch.cuda.FloatTensor(bias))
                 self._highways._layers[k].bias.requires_grad = self.requires_grad
 
     def _load_projection(self):
@@ -232,8 +237,8 @@ class _ElmoCharacterEncoder(torch.nn.Module):
         with h5py.File(self._weight_file, 'r') as fin:
             weight = fin['CNN_proj']['W_proj'][...]
             bias = fin['CNN_proj']['b_proj'][...]
-            self._projection.weight.data.copy_(torch.FloatTensor(numpy.transpose(weight)))
-            self._projection.bias.data.copy_(torch.FloatTensor(bias))
+            self._projection.weight.data.copy_(torch.cuda.FloatTensor(numpy.transpose(weight)))
+            self._projection.bias.data.copy_(torch.cuda.FloatTensor(bias))
 
             self._projection.weight.requires_grad = self.requires_grad
             self._projection.bias.requires_grad = self.requires_grad
@@ -292,8 +297,8 @@ class _ElmoBiLm(torch.nn.Module):
         -------
         Dict with keys:
         ``'activations'``: ``List[torch.autograd.Variable]``
-            A list of activations at each layer of the network, each of shape
-            ``(batch_size, timesteps + 2, embedding_dim)``
+            A list of activations at each layer of the network,
+            each of shape ``(batch_size, timesteps + 2, embedding_dim)``
         ``'mask'``:  ``torch.autograd.Variable``
             Shape ``(batch_size, timesteps + 2)`` long tensor with sequence mask.
         Note that the output tensors all include additional special begin and end of sequence

@@ -1,7 +1,7 @@
 import itertools
 import torch
 from torch.autograd import Variable
-
+torch.set_default_tensor_type('torch.cuda.FloatTensor')
 
 def block_orthogonal(tensor, split_sizes, gain=1.0):
     """

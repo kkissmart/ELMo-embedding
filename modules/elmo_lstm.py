@@ -11,7 +11,7 @@ from torch.autograd import Variable
 
 from modules.lstm_cell_with_projection import LstmCellWithProjection
 from modules.encoder_base import _EncoderBase
-
+torch.set_default_tensor_type('torch.cuda.FloatTensor')
 
 class ElmoLstm(_EncoderBase):
     """
@@ -213,6 +213,7 @@ class ElmoLstm(_EncoderBase):
             # batch_size*seq_length*hidden_size output for this layer
             # forward_state is the final output tuple of (C(T), H(T))
             # from last lstm cell of this layer
+            #print ("forward_output_sequence****", forward_output_sequence.shape)
             forward_output_sequence, forward_state = forward_layer(forward_output_sequence,
                                                                    batch_lengths,
                                                                    forward_state)
@@ -224,6 +225,7 @@ class ElmoLstm(_EncoderBase):
                 forward_output_sequence += forward_cache
                 backward_output_sequence += backward_cache
 
+            #print ("forward_output_sequence****", forward_output_sequence.shape)
             sequence_outputs.append(torch.cat([forward_output_sequence,
                                                backward_output_sequence], -1))
             # Append the state tuples in a list, so that we can return
@@ -275,8 +277,8 @@ class ElmoLstm(_EncoderBase):
                         torch_w[(1 * cell_size):(2 * cell_size), :] = tf_w[(2 * cell_size):(3 * cell_size), :]
                         torch_w[(2 * cell_size):(3 * cell_size), :] = tf_w[(1 * cell_size):(2 * cell_size), :]
 
-                    lstm.input_linearity.weight.data.copy_(torch.FloatTensor(input_weights))
-                    lstm.state_linearity.weight.data.copy_(torch.FloatTensor(recurrent_weights))
+                    lstm.input_linearity.weight.data.copy_(torch.cuda.FloatTensor(input_weights))
+                    lstm.state_linearity.weight.data.copy_(torch.cuda.FloatTensor(recurrent_weights))
                     lstm.input_linearity.weight.requires_grad = requires_grad
                     lstm.state_linearity.weight.requires_grad = requires_grad
 
@@ -288,10 +290,10 @@ class ElmoLstm(_EncoderBase):
                     torch_bias = tf_bias.copy()
                     torch_bias[(1 * cell_size):(2 * cell_size)] = tf_bias[(2 * cell_size):(3 * cell_size)]
                     torch_bias[(2 * cell_size):(3 * cell_size)] = tf_bias[(1 * cell_size):(2 * cell_size)]
-                    lstm.state_linearity.bias.data.copy_(torch.FloatTensor(torch_bias))
+                    lstm.state_linearity.bias.data.copy_(torch.cuda.FloatTensor(torch_bias))
                     lstm.state_linearity.bias.requires_grad = requires_grad
 
                     # the projection weights
                     proj_weights = numpy.transpose(dataset['W_P_0'][...])
-                    lstm.state_projection.weight.data.copy_(torch.FloatTensor(proj_weights))
+                    lstm.state_projection.weight.data.copy_(torch.cuda.FloatTensor(proj_weights))
                     lstm.state_projection.weight.requires_grad = requires_grad
