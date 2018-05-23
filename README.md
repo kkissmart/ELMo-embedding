@@ -26,13 +26,12 @@ biLM architecture here is
 
 __________________________________________________________________________
 EMLo layers conf
-1) input num_tensors = # of biLM layers + 1 (
+1) input num_tensors = # of biLM layers + 1 
     * 1 = context independent input, the one out of cnn+highway+projection, before LSTM
 2) input tensor = [context independent input] + [first LSTM output] + [second LSTM output]
 3) mixture = gamma * sum(weights * tensor)
-  * weights are scalar with softmax. 
-EMLo parameters:
-(gamma, weights) * # of EMLo layers
+    * weights are scalar with softmax. 
+    * EMLo parameters:  (gamma, weights) * # of EMLo layers
 
 __________________________________________________________________________
 This repo can be used to test on several langunage problems by change sentences variable in training.py (here POS is used for test purpose). 
