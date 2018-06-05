@@ -1,4 +1,3 @@
-### training on one GPU only
 from data.data import Vocabulary, UnicodeCharsVocabulary, Batcher
 from modules.model import Elmo
 
@@ -6,6 +5,7 @@ import numpy as np
 import torch
 import torch.optim as optim
 import torch.nn as nn
+from torch.autograd import Variable
 torch.set_default_tensor_type('torch.cuda.FloatTensor')
 
 
@@ -95,7 +95,6 @@ class Net(nn.Module):
 
     def forward(self, inputs):
         x = self.fc(inputs)
-        #x = nn.LogSoftmax(x)
         return x
 
 net = Net(max_sentence_length, num_Elmo_layers, 237)
@@ -111,22 +110,22 @@ def get_targets_with_max_length(targets, max_sentence_length):
     tgs_ = []
 
     for tg in targets:
-        if len(tg) <= max_sentence_length :
+        if len(tg) <= max_sentence_length:
             tgs_ += [tgs_dict[tok] for tok in tg]
         else:
             tgs_ += [tgs_dict[tok] for tok in tg[:max_sentence_length]]
 
-    return torch.cuda.LongTensor(tgs_)
+    return Variable(torch.cuda.LongTensor(tgs_))
 
-for epoch in range(3):
+for epoch in range(5):
     running_loss = 0.0
     total = 0.
     correct = 0.
-    for i in range(len(sentences)/200):
+    for i in range(len(sentences)//200):
         character_ids = batch_to_ids("vocab.txt", sentences[200*i : 200*(i+1)], max_sentence_length, 50, with_bos_eos=False)
         embeddings = elmo(character_ids)
         tgs = get_targets_with_max_length(targets[200*i : 200*(i+1)], max_sentence_length)
-        tokens = torch.cat(embeddings['elmo_representations'], -1)
+        tokens = Variable(torch.cat(embeddings['elmo_representations'], -1))
         mask = embeddings['mask']
         tokens = tokens.view(-1, 1024*num_Elmo_layers)
         mask = mask.view(-1)
@@ -139,8 +138,8 @@ for epoch in range(3):
         inputs = inputs[:j]
         assert(inputs.shape[0] == tgs.shape[0]), "input and label have different shape"
         num_batchs = inputs.shape[0]//batch_size
-        inputs = inputs[:num_batchs*batch_size].view(-1, batch_size, 1024*num_Elmo_layers)
-        labels = tgs[:num_batchs*batch_size].view(-1, batch_size)
+        inputs = Variable(inputs[:num_batchs*batch_size].view(-1, batch_size, 1024*num_Elmo_layers))
+        labels = Variable(tgs[:num_batchs*batch_size].view(-1, batch_size))
         for data , label in zip(inputs, labels):
             optimizer.zero_grad()
             outputs = net(data)
@@ -149,7 +148,7 @@ for epoch in range(3):
             correct += (predicts == label).sum().item()
             total += batch_size
             loss = criterion(outputs, label)
-            loss.backward(retain_graph=True)
+            loss.backward()
             optimizer.step()
             running_loss += loss.item()
     print('[%d] loss: %.3f acurracy: %.3f' %(epoch + 1, running_loss, correct * 1.0/total))
