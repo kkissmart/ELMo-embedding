@@ -14,6 +14,7 @@ weight_file = "elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5"
 train_file = "sentences.small.train"
 validation_file = "sentences.small.dev"
 
+
 def batch_to_ids(lm_vocab_file, batch, max_sentence_length, max_token_length, with_bos_eos):
     """
     Converts a batch of tokenized sentences to a tensor
@@ -28,6 +29,7 @@ def batch_to_ids(lm_vocab_file, batch, max_sentence_length, max_token_length, wi
         A tensor of padded character ids.
     """
     data = Batcher(lm_vocab_file, max_token_length, max_sentence_length).batch_sentences(batch, with_bos_eos)
+
     return Variable(torch.cuda.FloatTensor(data))
 
 def parse_sentences_target(file_location):
@@ -61,21 +63,25 @@ def parse_sentences_target(file_location):
 training_data = parse_sentences_target(train_file)
 sentences, targets = training_data["sentences"], training_data["targets"]
 
+
 vocab = set([tk for sent in sentences for tk in sent] +['<S>', '</S>', '<UNK>', '!!!MAXTERMID'])
 with open ("vocab.txt", "w") as f:
     f.write('\n'.join(vocab))
 
 
 total_tags = set([tg for l in targets for tg in l])
+
 global tgs_dict
 tgs_dict = {}
 for idx, tag in enumerate(total_tags):
+
     tgs_dict[tag] = idx
 
 
 def get_targets_with_max_length(targets, max_sentence_length):
     tgs_ = []
     for tg in targets:
+
         if len(tg) <= max_sentence_length:
             tgs_.append([tgs_dict[tok] for tok in tg] + [len(tgs_dict)+1] * (max_sentence_length -len(tg)))
         else:
@@ -83,11 +89,14 @@ def get_targets_with_max_length(targets, max_sentence_length):
     return Variable(torch.cuda.LongTensor(tgs_))
 
 epoch_number = 1
+
 num_Elmo_layers = 2
 max_sentence_length = 50
 batch_size = 64
 num_gpu = 4
 max_load = 200
+
+
 
 
 class Net(nn.Module):
@@ -101,6 +110,7 @@ class Net(nn.Module):
     def forward(self, inputs):
         x = self.fc(inputs)
         return x
+
 
 
 def train(epoch_number,
